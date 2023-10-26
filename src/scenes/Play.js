@@ -7,7 +7,9 @@ class Play extends Phaser.Scene {
         //load images
         this.load.image('rocket', './assets/rocket.png');
         this.load.image('spaceship', './assets/spaceship.png');
+        this.load.image('fastShip', './assets/fastShip.png');
         this.load.image('starfield', './assets/starfield.png');
+        this.load.image('particle', './assets/particle.png')
 
         //load sprite
         this.load.spritesheet('explosion', './assets/explosion.png',
@@ -34,9 +36,9 @@ class Play extends Phaser.Scene {
             game.config.height - borderUISize -borderPadding, 'rocket').setOrigin(0.5, 0);
 
         // add spaceships (x3)
-        this.ship01 = new Spaceship(this, game.config.width + borderUISize*6, borderUISize*4, 'spaceship', 0, 30).setOrigin(0, 0);
-        this.ship02 = new Spaceship(this, game.config.width + borderUISize*3, borderUISize*5 + borderPadding*2, 'spaceship', 0, 20).setOrigin(0,0);
-        this.ship03 = new Spaceship(this, game.config.width, borderUISize*6 + borderPadding*4, 'spaceship', 0, 10).setOrigin(0,0);
+        this.ship01 = new Spaceship(this, game.config.width + borderUISize*6, borderUISize*4, 'spaceship', 0, 30, 3).setOrigin(0, 0);
+        this.ship02 = new Spaceship(this, game.config.width + borderUISize*3, borderUISize*5 + borderPadding*2, 'spaceship', 0, 20, 3).setOrigin(0,0);
+        this.ship03 = new Spaceship(this, game.config.width, borderUISize*6 + borderPadding*4, 'fastShip', 0, 50, 10).setOrigin(0,0);
 
         //define keys
         keyF = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.F);
@@ -73,11 +75,54 @@ class Play extends Phaser.Scene {
         this.gameOver = false;
 
         scoreConfig.fixedWidth = 0;
-        this.clock = this.time.delayedCall(game.settings.gameTimer, () => {
-            this.add.text(game.config.width/2, game.config.height/2, 'GAME OVER', scoreConfig).setOrigin(0.5);
-            this.add.text(game.config.width/2, game.config.height/2 + 64, 'Press (R) to Restart or <- to Menu', scoreConfig).setOrigin(0.5);
-            this.gameOver = true;
-        }, null, this);
+
+        // this.clock = this.time.delayedCall(game.settings.gameTimer, () => {
+        //     this.add.text(game.config.width/2, game.config.height/2, 'GAME OVER', scoreConfig).setOrigin(0.5);
+        //     this.add.text(game.config.width/2, game.config.height/2 + 64, 'Press (R) to Restart or <- to Menu', scoreConfig).setOrigin(0.5);
+        //     this.gameOver = true;
+        // }, null, this);
+
+
+        this.gameClock = game.settings.gameTimer;
+        // create an object to populate the text configuration members
+        let gameClockConfig =
+            {
+                fontFamily: "Courier",
+                fontSize: "20px",
+                backgroundColor: "#f3b141",
+                color: "#843605",
+                align: "left",
+                padding: {top: 5, bottom: 5},
+                fixedWidth: 140
+            };
+        // add the text to the screen
+        this.timeLeft = this.add.text
+        (
+            400, // x-coord
+            54, // y-coord
+            "Timer: " + this.formatTime(this.gameClock), // text to display
+            gameClockConfig // text style config object
+        );
+        // add the event to decrement the clock
+        // code adapted from:
+        //  https://phaser.discourse.group/t/countdown-timer/2471/3
+        this.timedEvent = this.time.addEvent
+        (
+            {
+                delay: 1000,
+                callback: () =>
+                {
+                    if (!this.gameOver) {
+                        this.gameClock -= 1000;
+                        this.timeLeft.text = "Timer: " +
+                            this.formatTime(this.gameClock);
+                    }
+                },
+                scope: this,
+                loop: true
+            }
+        );
+
     }
 
     update() {
@@ -99,18 +144,38 @@ class Play extends Phaser.Scene {
             this.ship03.update();
         }
 
-        //check collisions
         if (this.checkCollision(this.p1Rocket, this.ship03)) {
+            this.gameClock = this.gameClock + 30000;
             this.p1Rocket.reset();
+            this.particle(this.ship03)
             this.shipExplode(this.ship03);
         }
         if (this.checkCollision(this.p1Rocket, this.ship02)) {
+            this.gameClock = this.gameClock + 30000;
             this.p1Rocket.reset();
+            this.particle(this.ship02)
             this.shipExplode(this.ship02);
         }
         if (this.checkCollision(this.p1Rocket, this.ship01)) {
+            this.gameClock = this.gameClock + 30000;
             this.p1Rocket.reset();
+            this.particle(this.ship01)
             this.shipExplode(this.ship01);
+        }
+
+        if (this.gameClock === 0) {
+            this.gameClock = 0; // Ensure the timer doesn't go below 0
+
+            // Display "GAME OVER" text
+            this.add.text(game.config.width / 2, game.config.height / 2, 'GAME OVER', scoreConfig).setOrigin(0.5);
+            this.add.text(game.config.width / 2, game.config.height / 2 + 64, 'Press (R) to Restart or <- to Menu', scoreConfig).setOrigin(0.5);
+            this.gameOver = true;
+
+            // // Add the delayed event for game over
+            // this.time.delayedCall(game.settings.gameTimer, () => {
+            //     this.scene.restart();
+            // }, null, this);
+
         }
     }
 
@@ -136,5 +201,24 @@ class Play extends Phaser.Scene {
         this.scoreLeft.text = this.p1Score;
 
         this.sound.play('sfx_explosion');
+    }
+
+    formatTime(ms)
+    {
+        let s = ms/1000;
+        let min = Math.floor(s/60);
+        let seconds = s%60;
+        seconds = seconds.toString().padStart(2, "0");
+        return `${min}:${seconds}`;
+    }
+
+    particle(ship) {
+        this.add.particles(ship.x, ship.y, 'particle', {
+            speed: 200,
+            lifespan: 150,
+            quantity: 3,
+            duration: 300,
+            maxParticles: 5
+        })
     }
 }
