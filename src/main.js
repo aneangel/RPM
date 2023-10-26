@@ -1,3 +1,13 @@
+// Anthony Angeles
+// Rocket Patrol: the fast and the furious
+// Time Taken: 5 hrs
+// Mods:
+// Particles 5pts
+// Faster spaceship: 5pts
+// Time addition after each collision: 5pts
+// Displaying time: 3pts
+
+
 let config = {
     type: Phaser.CANVAS,
     width: 640,
